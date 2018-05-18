@@ -248,6 +248,9 @@
             _removeItems: function(items)
             {
                 var self = this;
+                items = items.filter(function() {
+                    return !self._isDisabled($(this));
+                });
 
                 self._trigger("beforeRemove");
 
@@ -305,15 +308,17 @@
 
                 self._trigger("beforeRemoveAll");
 
-                var items = self.targetList.children();
-                self.sourceList.append( self._removeSelections(items) );
+                var items = self.targetList.children(":not(.ui-state-disabled)");
+                if (items.length > 0) {
+                    self.sourceList.append(self._removeSelections(items));
 
-                self.element.children().filter(":selected").removeAttr("selected");
+                    self.element.children().filter(":selected").removeAttr("selected");
 
-                self._refresh();
+                    self._refresh();
 
-                self._trigger("afterRemoveAll", null, { items: items });
-                self._trigger("onChange", null, { type: "removeAll", items: items });
+                    self._trigger("afterRemoveAll", null, {items: items});
+                    self._trigger("onChange", null, {type: "removeAll", items: items});
+                }
             },
 
             _refresh: function()
@@ -385,7 +390,8 @@
 
             _sortItems: function(list, options)
             {
-                var items = new Array();
+                var items = [];
+                var itemsHtml = [];
 
                 list.children().each(function()
                 {
@@ -407,18 +413,26 @@
                         return -1;
                     }
                 });
+                for (var i = 0; i < items.length; i++) {
+                    var item = items[i];
+                    itemsHtml.push(item[0].outerHTML);
+                }
 
                 list.empty();
 
-                for(var i = 0; i < items.length; i++)
+                for(var j = 0; j < itemsHtml.length; j++)
                 {
-                    list.append(items[i]);
+                    list.append(itemsHtml[j]);
                 }
             },
 
             _changeHandler: function(e)
             {
                 var self = e.data.pickList;
+                // ignoring disabled list items
+                if(self._isDisabled($(this))) {
+                    return;
+                }
 
                 if(e.ctrlKey)
                 {
@@ -482,11 +496,18 @@
             {
                 return listItem.hasClass("ui-selected");
             },
+            _isDisabled: function(listItem)
+            {
+                return listItem.hasClass("ui-state-disabled");
+            },
 
             _addSelection: function(listItem)
             {
                 var self = this;
-
+                // ignoring disabled list items
+                if(self._isDisabled(listItem)) {
+                    return;
+                }
                 return listItem
                     .addClass("ui-selected")
                     .addClass("ui-state-highlight")
@@ -606,27 +627,30 @@
             _createSelectItem: function(item)
             {
                 var selected = item.selected ? " selected='selected'" : "";
-                return "<option value='" + item.value + "'" + selected + ">" + item.label + "</option>";
+                var disabled = item.disabled ? " disabled='disabled'" : "";
+                return "<option value='" + item.value + "'" + selected + disabled + ">" + item.label + "</option>";
             },
 
             _createListItem: function(item)
             {
                 var self = this;
+                var disabledClass = item.disabled ? "ui-state-disabled" : "";
 
                 if(item.element != undefined)
                 {
                     var richItemHtml = item.element.clone().wrap("<div>").parent().html();
                     item.element.hide();
-                    return "<li " + self.options.listItemValueAttribute + "='" + item.value + "' label='" + item.label + "' title='" + item.title + "' class='" + self.options.listItemClass + " " + self.options.richListItemClass + "'>" + richItemHtml + "</li>";
+                    return "<li " + self.options.listItemValueAttribute + "='" + item.value + "' label='" + item.label + "' title='" + item.title + "' class='" + self.options.listItemClass + " " + self.options.richListItemClass + " " + disabledClass + "'>" + richItemHtml + "</li>";
                 }
 
-                return "<li " + self.options.listItemValueAttribute + "='" + item.value + "' label='" + item.label + "' title='" + item.title + "' class='" + self.options.listItemClass + "'>" + item.label + "</li>";
+                return "<li " + self.options.listItemValueAttribute + "='" + item.value + "' label='" + item.label + "' title='" + item.title + "' class='" + self.options.listItemClass + " " + disabledClass + "'>" + item.label + "</li>";
             },
 
             _createDoppelganger: function(item)
             {
                 var self = this;
-                return "<li " + self.options.listItemValueAttribute + "='" + $(item).val() + "' label='" + $(item).text() + "' class='" + self.options.listItemClass + "'>" + $(item).text() + "</li>";
+                var disabledClass = $(item).is(":disabled") ? "ui-state-disabled" : "";
+                return "<li " + self.options.listItemValueAttribute + "='" + $(item).val() + "' label='" + $(item).text() + "' class='" + self.options.listItemClass + disabledClass + "'>" + $(item).text() + "</li>";
             },
 
             _getItemValue: function(item)
